@@ -33,7 +33,7 @@ public class Region: Codable {
 	}
 
 	private func generateDailyChange() -> Change? {
-		if !subRegions.isEmpty {
+		if !isCountry, !subRegions.isEmpty {
 			return Change.sum(subChanges: subRegions.compactMap { $0.dailyChange })
 		}
 
@@ -43,7 +43,7 @@ public class Region: Codable {
 		var yesterdayStat: Statistic
 		var dates = timeSeries.series.keys.sorted()
 		guard let lastDate = dates.popLast(),
-			lastDate.ageDays < 2,
+			lastDate.ageDays <= 3,
 			let lastStat = timeSeries.series[lastDate] else { return nil }
 
 		yesterdayStat = lastStat
@@ -68,6 +68,7 @@ public class Region: Codable {
 }
 
 extension Region {
+	public var isWorld: Bool { level == .world }
 	public var isCountry: Bool { level == .country }
 	public var isProvince: Bool { level == .province }
 	public var longName: String { isProvince ? "\(name), \(parentName ?? "-")" : name }
@@ -114,12 +115,18 @@ extension Region {
 extension Region: Equatable {
 	public static func == (lhs: Region, rhs: Region) -> Bool {
 		(lhs.level == rhs.level && lhs.parentName == rhs.parentName && lhs.name == rhs.name) ||
-			lhs.location == rhs.location
+			(lhs.level == rhs.level && lhs.location == rhs.location && !lhs.location.isZero)
 	}
 }
 
 extension Region: Comparable {
 	public static func < (lhs: Region, rhs: Region) -> Bool {
 		lhs.report?.stat.confirmedCount ?? 0 < rhs.report?.stat.confirmedCount ?? 0
+	}
+}
+
+extension Region: CustomStringConvertible {
+	public var description: String {
+		"Region: \(name) @\(parentName ?? "-") #\(report?.description ?? "-") ##\(timeSeries?.description ?? "-")"
 	}
 }

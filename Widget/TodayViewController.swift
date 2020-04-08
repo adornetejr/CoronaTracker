@@ -66,9 +66,9 @@ class TodayViewController: UIViewController, NCWidgetProviding {
 		}
 
 		worldwideTitleLabel.text = L10n.Region.world
-		confirmedLabel.text = L10n.Case.confirmed
-		recoveredLabel.text = L10n.Case.recovered
-		deathsLabel.text = L10n.Case.deaths
+		confirmedLabel.text = L10n.Case.confirmed.uppercased()
+		recoveredLabel.text = L10n.Case.recovered.uppercased()
+		deathsLabel.text = L10n.Case.deaths.uppercased()
 	}
 
     private func update() {
@@ -103,12 +103,12 @@ class TodayViewController: UIViewController, NCWidgetProviding {
 		guard let report = report else { return }
 		recoveredCountLabel.transition { [weak self] in
 			self?.recoveredCountLabel.text = self?.showPercents == true ?
-				report.stat.recoveredPercent.percentFormatted :
+				report.stat.recoveredPercentString :
 				report.stat.recoveredCountString
 		}
 		deathsCountLabel.transition { [weak self] in
 			self?.deathsCountLabel.text = self?.showPercents == true ?
-				report.stat.deathPercent.percentFormatted :
+				report.stat.deathPercentString :
 				report.stat.deathCountString
 		}
 	}

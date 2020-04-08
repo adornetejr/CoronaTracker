@@ -61,16 +61,31 @@ extension UIView {
 		UIGraphicsImageRenderer(bounds: bounds).image { layer.render(in: $0.cgContext) }
 	}
 
-	public func snapEdgesToSuperview() {
-		snapEdges(to: superview!)
+	public func snapEdgesToSuperview(_ edges: UIRectEdge = .all, constant: CGFloat = 0, safeArea: Bool = false) {
+		snapEdges(edges, to: superview!, constant: constant, safeArea: safeArea)
 	}
 
-	public func snapEdges(to view: UIView) {
+	public func snapEdges(_ edges: UIRectEdge, to otherView: UIView, constant: CGFloat = 0, safeArea: Bool = false) {
 		translatesAutoresizingMaskIntoConstraints = false
-		leadingAnchor.constraint(equalTo: view.leadingAnchor).isActive = true
-		trailingAnchor.constraint(equalTo: view.trailingAnchor).isActive = true
-		topAnchor.constraint(equalTo: view.topAnchor).isActive = true
-		bottomAnchor.constraint(equalTo: view.bottomAnchor).isActive = true
+		var otherViewTopAnchor = otherView.topAnchor
+		var otherViewBottomAnchor = otherView.bottomAnchor
+		if #available(iOS 11, *), safeArea {
+			otherViewTopAnchor = otherView.safeAreaLayoutGuide.topAnchor
+			otherViewBottomAnchor = otherView.safeAreaLayoutGuide.bottomAnchor
+		}
+
+		if edges.contains(.top) {
+			topAnchor.constraint(equalTo: otherViewTopAnchor, constant: constant).isActive = true
+		}
+		if edges.contains(.bottom) {
+			bottomAnchor.constraint(equalTo: otherViewBottomAnchor, constant: -constant).isActive = true
+		}
+		if edges.contains(.left) {
+			leadingAnchor.constraint(equalTo: otherView.leadingAnchor, constant: constant).isActive = true
+		}
+		if edges.contains(.right) {
+			trailingAnchor.constraint(equalTo: otherView.trailingAnchor, constant: -constant).isActive = true
+		}
 	}
 
 	public func enableShadow(radius: CGFloat = 3,
@@ -179,5 +194,18 @@ extension UIImage {
 		UIGraphicsEndImageContext()
 
 		return scaledImage
+	}
+}
+
+extension UIColor {
+	var dynamic: UIColor {
+		if #available(iOS 13.0, *) {
+			var hue: CGFloat = 0, saturation: CGFloat = 0, brightness: CGFloat = 0, alpha: CGFloat = 0
+			self.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
+			let darkThemeColor = UIColor(hue: hue, saturation: saturation * 0.9, brightness: brightness * 1.3, alpha: alpha)
+			return UIColor(dynamicProvider: { ($0.userInterfaceStyle == .dark ? darkThemeColor : self) })
+		} else {
+			return self
+		}
 	}
 }

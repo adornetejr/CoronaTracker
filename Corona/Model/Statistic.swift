@@ -22,16 +22,31 @@ extension Statistic {
 	public var activePercent: Double { confirmedCount == 0 ? 0 :  100.0 * Double(activeCount) / Double(confirmedCount) }
 
 	public var confirmedCountString: String { confirmedCount.groupingFormatted }
-	public var recoveredCountString: String { recoveredCount.groupingFormatted }
+	public var recoveredCountString: String { recoveredCount == 0 ? "-" : recoveredCount.groupingFormatted }
 	public var deathCountString: String { deathCount.groupingFormatted }
 	public var activeCountString: String { activeCount.groupingFormatted }
+
+	public var recoveredPercentString: String { recoveredCount == 0 ? "-" : recoveredPercent.percentFormatted }
+	public var deathPercentString: String { deathPercent.percentFormatted }
+	public var activePercentString: String { activePercent.percentFormatted }
 
 	public var isZero: Bool { confirmedCount == 0 && recoveredCount == 0 && deathCount == 0 }
 }
 
 extension Statistic {
-	public enum Kind {
+	public enum Kind: CustomStringConvertible {
 		case confirmed, active, recovered, deaths
+
+		public static let all: [Kind] = [.confirmed, .active, .recovered, .deaths]
+
+		public var description: String {
+			switch self {
+			case .confirmed: return L10n.Case.confirmed
+			case .active: return L10n.Case.active
+			case .recovered: return L10n.Case.recovered
+			case .deaths: return L10n.Case.deaths
+			}
+		}
 	}
 
 	public func number(for kind: Kind) -> Int {
@@ -46,11 +61,7 @@ extension Statistic {
 
 extension Statistic: CustomStringConvertible {
 	public var description: String {
-		"""
-		\(L10n.Case.confirmed): \(confirmedCountString)
-		\(L10n.Case.recovered): \(recoveredCountString) (\(recoveredPercent.percentFormatted))
-		\(L10n.Case.deaths): \(deathCountString) (\(deathPercent.percentFormatted))
-		"""
+		"Statistic: \(confirmedCountString) | \(recoveredCountString) | \(deathCountString)"
 	}
 }
 

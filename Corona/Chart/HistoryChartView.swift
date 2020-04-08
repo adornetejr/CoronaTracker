@@ -10,62 +10,74 @@ import UIKit
 
 import Charts
 
-class HistoryChartView: LineChartView {
-	required init?(coder aDecoder: NSCoder) {
-		super.init(coder: aDecoder)
+class HistoryChartView: BaseLineChartView {
+	override var shareableText: String? { L10n.Share.chartHistory }
 
-		xAxis.gridColor = .lightGray
-		xAxis.gridLineDashLengths = [3, 3]
-		xAxis.labelPosition = .bottom
-		xAxis.labelTextColor = SystemColor.secondaryLabel
-		xAxis.valueFormatter = DayAxisValueFormatter(chartView: self)
+	override var extraMenuItems: [MenuItem] {
+		[MenuItem.option(title: L10n.Chart.logarithmic, selected: isLogarithmic, action: {
+			self.isLogarithmic = !self.isLogarithmic
+		})]
+	}
 
-//		leftAxis.drawGridLinesEnabled = false
-		leftAxis.gridColor = .lightGray
-		leftAxis.gridLineDashLengths = [3, 3]
-		leftAxis.labelTextColor = SystemColor.secondaryLabel
-		leftAxis.valueFormatter = DefaultAxisValueFormatter() { value, axis in
-			value.kmFormatted
+	var isLogarithmic = false {
+		didSet {
+			self.chartView.clear()
+			self.update(region: region, animated: true)
+		}
+	}
+
+	override func initializeView() {
+		super.initializeView()
+
+		chartView.leftAxis.valueFormatter = DefaultAxisValueFormatter() { value, axis in
+			self.isLogarithmic ? Int(pow(10, value)).kmFormatted : Int(value).kmFormatted
 		}
 
-		rightAxis.enabled = false
+		chartView.xAxis.valueFormatter = DayAxisValueFormatter(chartView: chartView)
 
-		dragEnabled = false
-		scaleXEnabled = false
-		scaleYEnabled = false
-
-		noDataTextColor = .systemGray
-		noDataFont = .systemFont(ofSize: 15)
-
-		marker = SimpleMarkerView(chartView: self)
-
-		initializeLegend(legend)
+		let marker = SimpleMarkerView(chartView: chartView)
+		marker.font = .systemFont(ofSize: 13 * fontScale)
+		chartView.marker = marker
 	}
 
-	private func initializeLegend(_ legend: Legend) {
-		legend.textColor = SystemColor.secondaryLabel
-		legend.font = .systemFont(ofSize: 12, weight: .regular)
-		legend.form = .circle
-		legend.formSize = 12
-		legend.horizontalAlignment = .center
-		legend.xEntrySpace = 10
+	override func updateOptions(from chartView: RegionChartView) {
+		super.updateOptions(from: chartView)
+
+		guard let chartView = chartView as? HistoryChartView else { return }
+		self.isLogarithmic = chartView.isLogarithmic
 	}
 
-	func update(series: TimeSeries?) {
-		guard let series = series else {
-			data = nil
+	override func update(region: Region?, animated: Bool) {
+		super.update(region: region, animated: animated)
+
+		guard let series = region?.timeSeries else {
+			chartView.data = nil
 			return
 		}
 
+		title = L10n.Chart.history
+
 		let dates = series.series.keys.sorted().drop { series.series[$0]?.isZero == true }
-		let confirmedEntries = dates.map {
-			ChartDataEntry(x: Double($0.referenceDays), y: Double(series.series[$0]?.confirmedCount ?? 0))
+		let confirmedEntries = dates.map { date -> ChartDataEntry in
+			var value = Double(series.series[date]?.confirmedCount ?? 0)
+			if isLogarithmic {
+				value = log10(value)
+			}
+			return ChartDataEntry(x: Double(date.referenceDays), y: value)
 		}
-		let recoveredEntries = dates.map {
-			ChartDataEntry(x: Double($0.referenceDays), y: Double(series.series[$0]?.recoveredCount ?? 0))
+		let recoveredEntries = dates.map { date -> ChartDataEntry in
+			var value = Double(series.series[date]?.recoveredCount ?? 0)
+			if isLogarithmic {
+				value = log10(value)
+			}
+			return ChartDataEntry(x: Double(date.referenceDays), y: value)
 		}
-		let deathsEntries = dates.map {
-			ChartDataEntry(x: Double($0.referenceDays), y: Double(series.series[$0]?.deathCount ?? 0))
+		let deathsEntries = dates.map { date -> ChartDataEntry in
+			var value = Double(series.series[date]?.deathCount ?? 0)
+			if isLogarithmic {
+				value = log10(value)
+			}
+			return ChartDataEntry(x: Double(date.referenceDays), y: value)
 		}
 
 		let entries = [confirmedEntries, deathsEntries, recoveredEntries]
@@ -77,23 +89,37 @@ class HistoryChartView: LineChartView {
 			let dataSet = LineChartDataSet(entries: entries[i], label: labels[i])
 			dataSet.mode = .cubicBezier
 			dataSet.drawValuesEnabled = false
-			dataSet.colors = [colors[i]]
+			dataSet.colors = [colors[i].withAlphaComponent(0.75)]
 
 //			dataSet.drawCirclesEnabled = false
-			dataSet.circleRadius = 2
-			dataSet.circleColors = [colors[i].withAlphaComponent(0.75)]
+			dataSet.circleRadius = (confirmedEntries.count < 60 ? 2 : 1.8) * fontScale
+			dataSet.circleColors = [colors[i]]
 
 			dataSet.drawCircleHoleEnabled = false
-			dataSet.circleHoleRadius = 1
+			dataSet.circleHoleRadius = 1 * fontScale
 
-			dataSet.lineWidth = 1
-			dataSet.highlightLineWidth = 0
+			dataSet.lineWidth = 1 * fontScale
+			dataSet.highlightLineWidth = 1 * fontScale
+			dataSet.highlightColor = UIColor.lightGray.withAlphaComponent(0.5)
+			dataSet.drawHorizontalHighlightIndicatorEnabled = false
 
 			dataSets.append(dataSet)
 		}
 
-		data = LineChartData(dataSets: dataSets)
+		if isLogarithmic {
+			chartView.leftAxis.axisMinimum = 1
+			chartView.leftAxis.axisMaximum = 7
+			chartView.leftAxis.labelCount = 6
+		}
+		else {
+			chartView.leftAxis.resetCustomAxisMin()
+			chartView.leftAxis.resetCustomAxisMax()
+		}
 
-		animate(xAxisDuration: 2)
+		chartView.data = LineChartData(dataSets: dataSets)
+
+		if animated {
+			chartView.animate(xAxisDuration: 2)
+		}
 	}
 }

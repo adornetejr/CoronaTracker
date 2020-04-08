@@ -13,6 +13,12 @@ public struct TimeSeries: Codable {
 }
 
 extension TimeSeries {
+	public var lastUpdate: Date? { series.keys.max() }
+	public var lastStatistic: Statistic? {
+		guard let lastUpdate = lastUpdate else { return nil }
+		return series[lastUpdate]
+	}
+
 	static func join(subSerieses: [TimeSeries]) -> TimeSeries? {
 		guard let firstSubSeries = subSerieses.first else { return nil }
 
@@ -40,5 +46,11 @@ extension TimeSeries {
 		}
 
 		return result
+	}
+}
+
+extension TimeSeries: CustomStringConvertible {
+	public var description: String {
+		"TimeSeries: \(lastUpdate?.description ?? "-"): \(lastStatistic?.description ?? "-")"
 	}
 }

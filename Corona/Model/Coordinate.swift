@@ -29,6 +29,8 @@ extension Coordinate {
 		}!
 	}
 
+	public var isZero: Bool { latitude == 0 && longitude == 0 }
+
 	public var clLocation: CLLocationCoordinate2D { CLLocationCoordinate2D(latitude: latitude, longitude: longitude) }
 
 	func distance(from other: Coordinate) -> Double {
@@ -40,5 +42,11 @@ extension Coordinate: Equatable {
 	public static func == (lhs: Coordinate, rhs: Coordinate) -> Bool {
 		Int(lhs.latitude * 1000) == Int(rhs.latitude * 1000) &&
 			Int(lhs.longitude * 1000) == Int(rhs.longitude * 1000)
+	}
+}
+
+extension Coordinate: CustomStringConvertible {
+	public var description: String {
+		"Coordinate: \(latitude),\(longitude)"
 	}
 }
