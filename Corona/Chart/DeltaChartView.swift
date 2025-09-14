@@ -1,8 +1,6 @@
 //
-//  DeltaChartView.swift
 //  Corona Tracker
-//
-//  Created by Mohammad on 3/23/20.
+//  Created by Mhd Hejazi on 3/23/20.
 //  Copyright © 2020 Samabox. All rights reserved.
 //
 
@@ -17,19 +15,46 @@ class DeltaChartView: BaseBarChartView {
 		[.confirmed, .deaths]
 	}
 
+	override var extraMenuItems: [MenuItem] {
+		[MenuItem.option(title: L10n.Chart.logarithmic, selected: isLogarithmic, action: {
+			self.isLogarithmic.toggle()
+		})]
+	}
+
+	var isLogarithmic = false {
+		didSet {
+			self.chartView.clear()
+			self.update(region: region, animated: true)
+		}
+	}
+
 	override func initializeView() {
 		super.initializeView()
 
 		chartView.xAxis.drawGridLinesEnabled = false
 		chartView.xAxis.valueFormatter = DayAxisValueFormatter(chartView: chartView)
 
-		chartView.leftAxis.valueFormatter = DefaultAxisValueFormatter() { value, axis in
-			Int(value).kmFormatted
+		chartView.leftAxis.valueFormatter = DefaultAxisValueFormatter { value, _ in
+			self.isLogarithmic ? pow(10, value).kmFormatted : value.kmFormatted
 		}
 
-		let marker = SimpleMarkerView(chartView: chartView)
+		let marker = SimpleMarkerView(chartView: chartView) { entry, _ in
+			let xValue = self.chartView.xAxis.valueFormatter?.stringForValue(entry.x, axis: nil) ?? "-"
+			if let value = entry.data as? Double {
+				return "\(xValue): \(value.kmFormatted)"
+			} else {
+				return "\(xValue): \(entry.y.kmFormatted)"
+			}
+		}
 		marker.font = .systemFont(ofSize: 13 * fontScale)
 		chartView.marker = marker
+	}
+
+	override func updateOptions(from chartView: RegionChartView) {
+		super.updateOptions(from: chartView)
+
+		guard let chartView = chartView as? DeltaChartView else { return }
+		self.isLogarithmic = chartView.isLogarithmic
 	}
 
 	override func update(region: Region?, animated: Bool) {
@@ -49,7 +74,7 @@ class DeltaChartView: BaseBarChartView {
 			LegendEntry(label: "↑ " + L10n.Chart.Delta.increasing, form: .circle, formSize: 12,
 						formLineWidth: 0, formLineDashPhase: 0, formLineDashLengths: nil, formColor: increasingColor),
 			LegendEntry(label: "↓ " + L10n.Chart.Delta.decreasing, form: .circle, formSize: 12,
-						formLineWidth: 0, formLineDashPhase: 0, formLineDashLengths: nil, formColor: .systemBlue),
+						formLineWidth: 0, formLineDashPhase: 0, formLineDashLengths: nil, formColor: .systemBlue)
 		])
 
 		let changes = series.changes()
@@ -58,16 +83,18 @@ class DeltaChartView: BaseBarChartView {
 		var entries = [BarChartDataEntry]()
 		for date in dates {
 			let value = Double(showNewDeaths ? changes[date]!.newDeaths : changes[date]!.newConfirmed)
-			let entry = BarChartDataEntry(x: Double(date.referenceDays), y: value)
+			let scaledValue = isLogarithmic ? log10(value) : value
+			let entry = BarChartDataEntry(x: Double(date.referenceDays), y: scaledValue)
+			entry.data = value
 			entries.append(entry)
 		}
 
 		var colors = [UIColor]()
-		for i in entries.indices.reversed() {
+		for index in entries.indices.reversed() {
 			var color = increasingColor
-			if i > 0 {
-				let currentEntry = entries[i]
-				let previousEntry = entries[i - 1]
+			if index > 0 {
+				let currentEntry = entries[index]
+				let previousEntry = entries[index - 1]
 				if currentEntry.y < previousEntry.y {
 					color = .systemBlue
 				}
@@ -81,10 +108,19 @@ class DeltaChartView: BaseBarChartView {
 
 		dataSet.drawValuesEnabled = false
 
+		if isLogarithmic {
+			chartView.leftAxis.axisMinimum = 1
+			chartView.leftAxis.axisMaximum = 6
+			chartView.leftAxis.labelCount = 5
+		} else {
+			chartView.leftAxis.axisMinimum = 0
+			chartView.leftAxis.resetCustomAxisMax()
+		}
+
 		chartView.data = BarChartData(dataSet: dataSet)
 
 		if animated {
-			chartView.animate(yAxisDuration: 2)
+			chartView.animate(yAxisDuration: 0.6, easingOption: .easeOutQuad)
 		}
 	}
 }

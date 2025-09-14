@@ -1,8 +1,6 @@
 //
-//  CurrentStateChart.swift
 //  Corona Tracker
-//
-//  Created by Mohammad on 3/7/20.
+//  Created by Mhd Hejazi on 3/7/20.
 //  Copyright © 2020 Samabox. All rights reserved.
 //
 
@@ -15,7 +13,7 @@ class HistoryChartView: BaseLineChartView {
 
 	override var extraMenuItems: [MenuItem] {
 		[MenuItem.option(title: L10n.Chart.logarithmic, selected: isLogarithmic, action: {
-			self.isLogarithmic = !self.isLogarithmic
+			self.isLogarithmic.toggle()
 		})]
 	}
 
@@ -29,13 +27,20 @@ class HistoryChartView: BaseLineChartView {
 	override func initializeView() {
 		super.initializeView()
 
-		chartView.leftAxis.valueFormatter = DefaultAxisValueFormatter() { value, axis in
-			self.isLogarithmic ? Int(pow(10, value)).kmFormatted : Int(value).kmFormatted
+		chartView.leftAxis.valueFormatter = DefaultAxisValueFormatter { value, _ in
+			self.isLogarithmic ? pow(10, value).kmFormatted : value.kmFormatted
 		}
 
 		chartView.xAxis.valueFormatter = DayAxisValueFormatter(chartView: chartView)
 
-		let marker = SimpleMarkerView(chartView: chartView)
+		let marker = SimpleMarkerView(chartView: chartView) { entry, _ in
+			let xValue = self.chartView.xAxis.valueFormatter?.stringForValue(entry.x, axis: nil) ?? "-"
+			if let value = entry.data as? Double {
+				return "\(xValue): \(value.kmFormatted)"
+			} else {
+				return "\(xValue): \(entry.y.kmFormatted)"
+			}
+		}
 		marker.font = .systemFont(ofSize: 13 * fontScale)
 		chartView.marker = marker
 	}
@@ -58,26 +63,22 @@ class HistoryChartView: BaseLineChartView {
 		title = L10n.Chart.history
 
 		let dates = series.series.keys.sorted().drop { series.series[$0]?.isZero == true }
-		let confirmedEntries = dates.map { date -> ChartDataEntry in
-			var value = Double(series.series[date]?.confirmedCount ?? 0)
-			if isLogarithmic {
-				value = log10(value)
-			}
-			return ChartDataEntry(x: Double(date.referenceDays), y: value)
+
+		func createEntry(date: Date, value: Double) -> ChartDataEntry {
+			let scaledValue = isLogarithmic ? log10(value) : value
+			let entry = ChartDataEntry(x: Double(date.referenceDays), y: scaledValue)
+			entry.data = value
+			return entry
 		}
-		let recoveredEntries = dates.map { date -> ChartDataEntry in
-			var value = Double(series.series[date]?.recoveredCount ?? 0)
-			if isLogarithmic {
-				value = log10(value)
-			}
-			return ChartDataEntry(x: Double(date.referenceDays), y: value)
+
+		let confirmedEntries = dates.map { date in
+			createEntry(date: date, value: Double(series.series[date]?.confirmedCount ?? 0))
 		}
-		let deathsEntries = dates.map { date -> ChartDataEntry in
-			var value = Double(series.series[date]?.deathCount ?? 0)
-			if isLogarithmic {
-				value = log10(value)
-			}
-			return ChartDataEntry(x: Double(date.referenceDays), y: value)
+		let recoveredEntries = dates.map { date in
+			createEntry(date: date, value: Double(series.series[date]?.recoveredCount ?? 0))
+		}
+		let deathsEntries = dates.map { date in
+			createEntry(date: date, value: Double(series.series[date]?.deathCount ?? 0))
 		}
 
 		let entries = [confirmedEntries, deathsEntries, recoveredEntries]
@@ -85,15 +86,15 @@ class HistoryChartView: BaseLineChartView {
 		let colors = [UIColor.systemOrange, .systemRed, .systemGreen]
 
 		var dataSets = [LineChartDataSet]()
-		for i in entries.indices {
-			let dataSet = LineChartDataSet(entries: entries[i], label: labels[i])
+		for index in entries.indices {
+			let dataSet = LineChartDataSet(entries: entries[index], label: labels[index])
 			dataSet.mode = .cubicBezier
 			dataSet.drawValuesEnabled = false
-			dataSet.colors = [colors[i].withAlphaComponent(0.75)]
+			dataSet.colors = [colors[index].withAlphaComponent(0.75)]
 
 //			dataSet.drawCirclesEnabled = false
 			dataSet.circleRadius = (confirmedEntries.count < 60 ? 2 : 1.8) * fontScale
-			dataSet.circleColors = [colors[i]]
+			dataSet.circleColors = [colors[index]]
 
 			dataSet.drawCircleHoleEnabled = false
 			dataSet.circleHoleRadius = 1 * fontScale
@@ -110,8 +111,7 @@ class HistoryChartView: BaseLineChartView {
 			chartView.leftAxis.axisMinimum = 1
 			chartView.leftAxis.axisMaximum = 7
 			chartView.leftAxis.labelCount = 6
-		}
-		else {
+		} else {
 			chartView.leftAxis.resetCustomAxisMin()
 			chartView.leftAxis.resetCustomAxisMax()
 		}
@@ -119,7 +119,7 @@ class HistoryChartView: BaseLineChartView {
 		chartView.data = LineChartData(dataSets: dataSets)
 
 		if animated {
-			chartView.animate(xAxisDuration: 2)
+			chartView.animate(xAxisDuration: 0.5, easingOption: .easeOutQuad)
 		}
 	}
 }

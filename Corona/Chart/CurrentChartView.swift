@@ -1,8 +1,6 @@
 //
-//  CurrentChartView.swift
 //  Corona Tracker
-//
-//  Created by Mohammad on 3/7/20.
+//  Created by Mhd Hejazi on 3/7/20.
 //  Copyright © 2020 Samabox. All rights reserved.
 //
 
@@ -63,7 +61,7 @@ class CurrentChartView: ChartView<PieChartView> {
 		chartView.data = PieChartData(dataSet: dataSet)
 
 		if animated {
-			chartView.animate(xAxisDuration: 1.4, easingOption: .easeOutBack)
+			chartView.animate(xAxisDuration: 0.8, easingOption: .easeOutBack)
 		}
 	}
 }
